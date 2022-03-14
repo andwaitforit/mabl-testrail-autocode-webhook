@@ -36,7 +36,7 @@ module.exports = async (context) => {
     
     
     var tcId = context.params.journey_executions[i].test_cases[0].id;
-    var url = "https://mkmorrison.testrail.com/index.php?/api/v2/add_result/" + tcId;
+    var url = "https://myInstance.testrail.com/index.php?/api/v2/add_result/" + tcId;
     var uname = process.env.uname;
     var pass = process.env.pass;
     
