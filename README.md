@@ -9,3 +9,5 @@ Once you've created your first webhook project from the Run section of the toolb
 You can then use this url to create a new webhook in the mabl application under the settings->webhooks section.
 
 Once the webhook url is create in autocode, and connected to mabl, simply paste the code provided in the repo to your main.js file.  Some additional parameters within the script will need to be updated such as username and password as environment variables.  As well as the testrail instance url.  Once these parameters are updated, your webhook should listen for any post execution results api calls from mabl triggered via plan runs which will execute the script to update your testrail instance.
+
+Additional functionality can be added by parsing additional field of the mabl generated JSON payload and leveraging additional fields provided by the testrail api.
