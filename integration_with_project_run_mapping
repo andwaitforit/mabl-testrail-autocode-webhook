@@ -3,126 +3,121 @@ const lib = require('lib',)({token: process.env.STDLIB_SECRET_TOKEN});
 const axios = require('axios');
 /**
 * An HTTP endpoint that acts as a webhook for HTTP(S) request event
-* @returns {object} result Your return value
+* @returns {object} results Your return value
 */
 module.exports = async (context) => {
-  let result = {}
+  let results = {}
 
   console.log('params:', context.params);
-  
 
+  let base_url = "https://myexample.testrail.io/index.php?/api/v2/";
   
-  //Orchestrate loop to find object in array containing identifier for project id TR
-  var projectId;
+  //Orchestrate loop to find testrail project id from mabl JSON object in labels array containing identifier for project id TR
+  var project_id;
   for(var j = 0; j<context.params.plan.labels.length; j++){
     if(context.params.plan.labels[j].includes('TR')){
-    projectId = context.params.plan.labels[j].slice(2);
+    project_id = context.params.plan.labels[j].slice(2);
     }
   }
-  console.log(projectId);
+  console.log(project_id);
   
-  //Set url endpoint to create project
-  let projectUrl = "https://myinstance.testrail.io/index.php?/api/v2/add_run/" + projectId;
-
-  //An array of expected mabl test cases can be included in testrail report can be added to runData json as an array
-  let testCasesIncluded = [];
+  let projectUrl = base_url +"add_run/" + project_id;
+  console.log(projectUrl);
+  
+  //An array of mabl test cases executed can be added to the testrail_new_run_json when generating a new run of testrail project
+  
+  let test_cases_executed = [];
   for(var x = 0; x<context.params.journey_executions.length; x++){
-    testCasesIncluded.push(parseInt(context.params.journey_executions[x].test_cases[0].id.replace( /^\D+/g, '')));
+    test_cases_executed.push(parseInt(context.params.journey_executions[x].test_cases[0].id.replace( /^\D+/g, '')));
   }
-  console.log(testCasesIncluded);
+  console.log(test_cases_executed);
 
+  const user_name = process.env.user_name;
+  const password = process.env.password;
   
-  const uname = 'user@myinstance.com';
-  const pass = 'password';
-
-  //Construct json payload to generate new test run within specific project mapped to mabl plan
-  var runData = JSON.stringify({
-    "name": "mabl generated test run " + new Date().toISOString(),
+  //Generate JSON body to provide testrail to create new project run containing only the testcases in testrail executed in mabl
+  var testrail_new_run_json = JSON.stringify({
+    "name": "mabl generated test run latest" + new Date().toISOString(),
     "include_all": false,
-    "case_ids": testCasesIncluded
+    "case_ids": test_cases_executed
   });
   
-  console.log(runData);
-
-  //Create new test run in testrail for specific project via api
-  let run = await axios.post(projectUrl, runData, {
+  console.log(testrail_new_run_json);
+  
+  //Create new test run  
+  let testrail_project_run = await axios.post(projectUrl, testrail_new_run_json, {
     auth: {
-      username: uname,
-      password: pass
+      username: user_name,
+      password: password
     },
     headers: {
         'Content-Type': 'application/json' 
       }
   });
-  console.log(run.error);
- 
- //Save specific test run id to target new results to be added to
-  let runId = run.data.id;
-  console.log(run);
-
-
+  console.log(testrail_project_run.error);
+  console.log(testrail_project_run.data.id);
+  console.log(testrail_project_run);
+  //Store the new testrail project run id return from testrail's api to add test results to that run
+  let testrail_project_run_id = testrail_project_run.data.id;
   
-  
-  //Find number of tests to iterate through
-  let numTests = (context.params.journey_executions.length);
- 
-  
-  for (let i = 0; i < numTests; i++) {
     
-    console.log('Test'+i, context.params.journeys[i].id);
-    console.log('Test'+i + 'Status',context.params.results[i].success);
+  //Find number of tests to iterate through
+  let total_mabl_tests_executed = (context.params.journey_executions.length);
+  console.log(total_mabl_tests_executed);  
+
+  for (let i = 0; i < total_mabl_tests_executed; i++) {
+    
+    //console.log('Test'+i, context.params.journeys[i].id);
+    //console.log('Test'+i + 'Status' + context.params.resultss[i].success);
     
     if(context.params.journey_executions[i].test_cases[0] != null){
     //Build api endpoint and request data
-        let testResult = context.params.results[i].success;
-        let status_id;
-        if (testResult== false){
-          status_id = 5;
+        let mabl_test_result_status = context.params.results[i].success;
+        let testrail_test_case_result_status;
+        if (mabl_test_result_status== false){
+          testrail_test_case_result_status = 5;
         }
-        else if(testResult == true){
-          status_id = 1;
+        else if(mabl_test_result_status == true){
+          testrail_test_case_result_status = 1;
         }
         else{
-          status_id = 2;
+          testrail_test_case_result_status = 2;
         }
+    //Add results to run
 
-        //Add result to run
-        let tcId = context.params.journey_executions[i].test_cases[0].id;
-        tcId = tcId.replace( /^\D+/g, '');
+    //Extract the associated test case id from mabl's execution json to add result for that test case to new testrail project run
+        let testrail_test_case_id = context.params.journey_executions[i].test_cases[0].id;
+        testrail_test_case_id = testrail_test_case_id.replace( /^\D+/g, '');
         
-        console.log('Testcase id' + i, tcId);
-        let resultUrl = "https://myinstance.testrail.io/index.php?/api/v2/add_result_for_case/" + runId + "/" + tcId; 
-        console.log(resultUrl);
-        console.log("https://myinstance.testrail.io/index.php?/api/v2/add_result_for_case/25113/11999958");
-        let postData = JSON.stringify({
-          "status_id": status_id,
-          "comment": "This is an automatic mabl result from webhooks"
+        console.log('Testcase id' + i, testrail_test_case_id);
+
+        let testrail_add_result_url = base_url + "add_results_for_case/" + testrail_project_run_id + "/" + testrail_test_case_id; 
+        console.log(testrail_add_result_url);
+        console.log("https://myexample.testrail.io/index.php?/api/v2/add_results_for_case/25113/11999958");
+        
+        //Generate the JSON body to pass to testrail api call to add result of mabl executed test case
+        let testrail_add_result_body = JSON.stringify({
+          "status_id": testrail_test_case_result_status,
+          "comment": "This is an automatic mabl results from webhooks"
         })
-        console.log(postData);
-        //Post request to testrail to update test run with result by testcase id
-        
-        let resp = await axios.post(resultUrl, postData, {
+        console.log(testrail_add_result_body);
+
+    //Post request to testrail to add result to project test run with mabl execution results    
+        let testrail_add_result_response = await axios.post(testrail_add_result_url, testrail_add_result_body, {
             auth: {
-              username: uname,
-              password: pass
+              username: user_name,
+              password: password
             },
             headers: {
                 'Content-Type': 'application/json' 
               }
-          });
-          
-          console.log(resp);  
-          console.log(resp.error);
-
-        
+          });          
+          console.log(testrail_add_result_response);  
+          console.log(testrail_add_result_response.error);        
       }
     }
   console.log('headers:', context.http.headers);
   console.log('body:', context.http.body);
-  
     
-  return result;
+  return results;
 };
-
-
-
