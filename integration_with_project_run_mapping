@@ -91,9 +91,9 @@ module.exports = async (context) => {
         
         console.log('Testcase id' + i, testrail_test_case_id);
 
-        let testrail_add_result_url = base_url + "add_results_for_case/" + testrail_project_run_id + "/" + testrail_test_case_id; 
+        let testrail_add_result_url = base_url + "add_result_for_case/" + testrail_project_run_id + "/" + testrail_test_case_id; 
         console.log(testrail_add_result_url);
-        console.log("https://myexample.testrail.io/index.php?/api/v2/add_results_for_case/25113/11999958");
+        console.log("https://myexample.testrail.io/index.php?/api/v2/add_result_for_case/25113/11999958");
         
         //Generate the JSON body to pass to testrail api call to add result of mabl executed test case
         let testrail_add_result_body = JSON.stringify({
